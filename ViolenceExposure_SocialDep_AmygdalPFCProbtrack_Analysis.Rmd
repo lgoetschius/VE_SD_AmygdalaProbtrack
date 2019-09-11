@@ -1,0 +1,608 @@
+---
+title: "Violence Exposure, Social Deprivation, and Amygdala-PFC Probtrack Analysis `r format(Sys.time(), '%d %B, %Y')`"
+author: "Leigh Gayle Goetschius"
+date: "Date of Last Edit: `r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(foreign)
+library(outliers);
+library(tidyverse)
+library(knitr)
+library(psych)
+library(gvlma)
+library(car);
+library(ggplot2);
+library(GGally);
+library(data.table);
+library(kableExtra);
+library(lmtest);
+library(QuantPsyc);
+library(jtools);
+library(ggstance);
+library(huxtable);
+library(apaTables);
+library(interactions); # the new jtools
+
+```
+
+#### R Version Used
+```{r}
+R.version.string
+```
+
+```{r package organization, include=FALSE}
+# Organizing package information for table
+packages <- c("foreign", "outliers", "tidyverse", "knitr", "psych", "gvlma", "car", "ggplot2", "GGally", "data.table", "kableExtra","jtools","ggstance","huxtable", "apaTable", "interactions")
+display <- c("Package","Title", "Maintainer", "Version", "URL")
+table <- matrix(NA, 1, NROW(display), dimnames = list(1, display))
+for(i in 1:NROW(packages)){
+list <- packageDescription(packages[i])
+table <- rbind(table, matrix(unlist(list[c(display)]), 1, NROW(display), byrow = T))
+}
+table[,NROW(display)] <- stringr::str_extract(table[,NROW(display)], ".+,")
+
+
+```
+#### Packages Used
+```{r}
+# Table of packages
+kable(table[-1,], format = "html", align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+
+
+## Load data.
+```{r}
+
+data = read.csv('/Users/leighgayle/Box Sync/ThreatDep_Probtrack_Amygdala/Manuscript/Data&Analysis/ViolenceExposure_SocialDep_AmygdalPFCProbtrack_Data_100218_Final.csv')
+
+
+```
+
+In the data as it is right now, we've got all of the subjects with dMRI data, the violence/dep composites, and the subgroups based on the threat/dep composite scores. 
+
+## Univariate (rather than multivariate) Outlier Method
+
+#### Right hemisphere outliers
+```{r}
+
+fit_R47 = lm(RAmy_BA47 ~ VE * Deprivation, data = data)
+cutoff = 4/((nrow(data) - length(fit_R47$coefficients)-1))
+plot(fit_R47, cook.levels=cutoff)
+
+fit_R10 = lm(RAmy_BA10 ~ VE * Deprivation, data = data)
+cutoff = 4/((nrow(data) - length(fit_R10$coefficients)-1))
+plot(fit_R10, cook.levels=cutoff)
+
+clean.data = data[-c(104, 108, 115, 116, 130, 151), ]
+
+clean.data = data[-c(22, 38, 73, 104, 108, 115, 116, 130, 131, 144, 151), ]
+
+
+
+```
+
+#### Left hemisphere outliers
+
+```{r}
+
+fit_L11 = lm(LAmy_BA11 ~ VE * Deprivation, data = data)
+cutoff = 4/((nrow(data) - length(fit_L11$coefficients)-1))
+plot(fit_L11, cook.levels=cutoff)
+
+fit_L10 = lm(LAmy_BA10 ~ VE * Deprivation, data = data)
+cutoff = 4/((nrow(data) - length(fit_L10$coefficients)-1))
+plot(fit_L10, cook.levels=cutoff)
+
+clean.dataL = data[-c(22, 38, 73, 116, 131, 144), ]
+
+```
+
+## Right hemisphere models 
+
+#### Testing amygdala-BA47 model.
+
+```{r}
+
+# All of my covariates
+summary(lm(RAmy_BA47 ~ VE * Deprivation + EthnoRace_C + EthnoRace_AA + Gender_0F_1M + RAmy_BA10 + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data=clean.data))
+
+# Preregistered covariates
+summary(lm(RAmy_BA47 ~ VE * Deprivation + EthnoRace_C + EthnoRace_AA + Gender_0F_1M  + cm1edu + m1b2, data=clean.data))
+
+# Not adjusting for RAmy_BA10
+# All of my covariates
+summary(lm(RAmy_BA47 ~ VE * Deprivation + EthnoRace_C + EthnoRace_AA + Gender_0F_1M  + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data=clean.data))
+
+BA47_mod = (lm(RAmy_BA47 ~ VE * Deprivation + EthnoRace_C + EthnoRace_AA + Gender_0F_1M  + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data=clean.data))
+lm.beta(BA47_mod)
+
+# No covariates included
+summary(lm(RAmy_BA47 ~ VE * Deprivation, data=clean.data))
+
+# Correlations between amygdala-BA47 probtrack and environmental composites.
+cor.test(clean.data$RAmy_BA47, clean.data$VE)
+cor.test(clean.data$RAmy_BA47, clean.data$Deprivation)
+
+# Correlation between amyygdala-BA47 probtrack and amygdala activation to threat faces.
+cor.test(clean.data$Ramy_0035, clean.data$RAmy_BA47)
+
+# Including covariates. 
+summary(lm(Ramy_0035 ~ RAmy_BA47 + Internalizing + pubc_mean, data = clean.data))
+actmod1 = lm(Ramy_0035 ~ RAmy_BA47 + Internalizing + pubc_mean, data = clean.data)
+lm.beta(actmod1)
+summary(lm(Ramy_0035 ~ RAmy_BA47 + EthnoRace_C + EthnoRace_AA + Gender_0F_1M + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data = clean.data))
+RBA47_act_mod = lm(Ramy_0035 ~ RAmy_BA47 + EthnoRace_C + EthnoRace_AA + Gender_0F_1M + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data = clean.data)
+lm.beta(RBA47_act_mod)
+
+# Plot association between amygdala-BA47 connectivity and amygdala activation to threat faces.
+plot(clean.data$RAmy_BA47, clean.data$Ramy_0035, xlab = 'Amygdala-OFC White Matter Connectivity', ylab = 'Amygdala Activation', frame.plot = FALSE)
+abline(lm(clean.data$Ramy_0035 ~ clean.data$RAmy_BA47))
+
+# Check the correlation between amygdala-BA47 probtrack and amygdala activation to angry faces and to fearful faces.
+cor.test(clean.data$RAmy_0011, clean.data$RAmy_BA47)
+summary(lm(RAmy_0011 ~ RAmy_BA47, data = clean.data))
+
+cor.test(clean.data$Ramy_0003, clean.data$RAmy_BA47)
+summary(lm(Ramy_0003 ~ RAmy_BA47, data = clean.data))
+summary(lm(Ramy_0003 ~ RAmy_BA47 + Internalizing + pubc_mean, data = clean.data))
+
+
+```
+
+#### Show that the residuals of this model look random for Amygdala-BA47 model. 
+
+```{r}
+
+mod = summary(lm(RAmy_BA47 ~ VE * Deprivation + EthnoRace_C + EthnoRace_AA + Gender_0F_1M + RAmy_BA10 + Internalizing + pubc_mean + ALES_sum, data=clean.data))
+fitBA47 = lm(RAmy_BA47 ~ VE * Deprivation + EthnoRace_C + EthnoRace_AA + Gender_0F_1M + RAmy_BA10 + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data=clean.data)
+fit_int = lm(RAmy_BA47 ~ VE * Deprivation, data = clean.data)
+fit_prereg = lm(RAmy_BA47 ~ VE * Deprivation + EthnoRace_C + EthnoRace_AA + Gender_0F_1M + RAmy_BA10 + cm1edu + m1b2, data=clean.data)
+# To get the beta weights
+lm.beta(fitBA47)
+lm.beta(fit_int)
+lm.beta(fit_prereg)
+
+plot(mod$residuals)
+mean(mod$residuals) # the mean of the residuals are zero
+t.test(mod$residuals)
+
+dwtest(fitBA47)
+
+cor.test(mod$residuals, clean.data$Deprivation*clean.data$VE)
+
+par(family = 'serif')
+qqnorm(mod$residuals, frame.plot = FALSE, main=NULL, cex.lab = 1.5, font.lab=2)
+
+```
+
+#### Testing amygdala-BA10 model.
+
+```{r}
+
+# All of my covariates
+summary(lm(RAmy_BA10 ~ VE * Deprivation + RAmy_BA47 + EthnoRace_AA + EthnoRace_C + Gender_0F_1M  + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data=clean.data))
+
+# Not adjusting for RAmy_BA47
+# All of my covariates
+summary(lm(RAmy_BA10 ~ VE * Deprivation + EthnoRace_AA + EthnoRace_C + Gender_0F_1M  + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data=clean.data))
+
+# No covariates
+summary(lm(RAmy_BA10 ~ VE * Deprivation, data = clean.data))
+
+# Correlation between amyygdala-BA10 probtrack and amygdala activation to threat faces.
+cor.test(clean.data$Ramy_0035, clean.data$RAmy_BA10)
+cor.test(clean.data$Ramy_0003, clean.data$RAmy_BA10)
+cor.test(clean.data$RAmy_0011, clean.data$RAmy_BA10)
+
+summary(lm(RAmy_0011 ~ RAmy_BA10, data = clean.data))
+summary(lm(Ramy_0003 ~ RAmy_BA10, data = clean.data))
+
+# Including covariates. 
+summary(lm(Ramy_0035 ~ RAmy_BA10 +  Internalizing + pubc_mean, data = clean.data))
+actmod2 = lm(Ramy_0035 ~ RAmy_BA10 +  Internalizing + pubc_mean, data = clean.data)
+lm.beta(actmod2)
+
+summary(lm(Ramy_0035 ~ RAmy_BA10 + EthnoRace_C + EthnoRace_AA + Gender_0F_1M + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data = clean.data))
+
+RBA10_act_mod = lm(Ramy_0035 ~ RAmy_BA10 + EthnoRace_C + EthnoRace_AA + Gender_0F_1M + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data = clean.data)
+lm.beta(RBA10_act_mod)
+
+```
+#### Looking at the residuals of the amygdala-BA10 model.
+```{r}
+mod1 = summary(lm(RAmy_BA10 ~ VE * Deprivation + EthnoRace_AA+ EthnoRace_C + Gender_0F_1M + RAmy_BA47 + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data=clean.data))
+mod10 = lm(RAmy_BA10 ~ VE * Deprivation + EthnoRace_AA+ EthnoRace_C + Gender_0F_1M + RAmy_BA47 + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data=clean.data)
+
+mod_int = lm(RAmy_BA10 ~ VE * Deprivation, data = clean.data)
+summary(mod_int)
+
+plot(mod1$residuals)
+```
+
+#### Just a fun plot of what the RAmy_BA10 interaction looks like before covariates -- it seems to look really similar to the RAmy-BA47 interaction. That's a fun sanity check. 
+
+```{r}
+
+interact_plot(mod_int, pred = VE, modx = Deprivation, data = clean.data, modx.values = 'plus-minus')
+
+
+```
+
+
+## Left hemisphere models
+
+#### Amygdala-BA10 model
+
+```{r}
+# Including all covariates
+summary(lm(LAmy_BA10 ~ VE * Deprivation + EthnoRace_AA+ EthnoRace_C + Gender_0F_1M + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data=clean.data))
+
+# No covariates
+summary(lm(LAmy_BA10 ~ VE * Deprivation, data = clean.dataL))
+
+# Association between amygdala-BA10 and amygdala activation to threat faces.
+cor.test(clean.dataL$Lamy_0035, clean.dataL$LAmy_BA10)
+
+# Including covariates.
+summary(lm(Lamy_0035 ~ LAmy_BA10 + Internalizing + pubc_mean, data = clean.dataL))
+actmod3 = lm(Lamy_0035 ~ LAmy_BA10 + Internalizing + pubc_mean, data = clean.dataL)
+lm.beta(actmod3)
+
+summary(lm(Lamy_0035 ~ LAmy_BA10 + EthnoRace_AA + EthnoRace_C + Gender_0F_1M  + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data = clean.dataL))
+LBA10_act_mod = lm(Lamy_0035 ~ LAmy_BA10 + EthnoRace_AA + EthnoRace_C + Gender_0F_1M  + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data = clean.dataL)
+lm.beta(LBA10_act_mod)
+
+summary(lm(LAmy_0011 ~ LAmy_BA10, data = clean.dataL))
+summary(lm(Lamy_0003 ~ LAmy_BA10, data = clean.dataL))
+
+```
+
+#### Checking the residuals of the amygdala-BA10 model
+
+```{r}
+
+mod2 = summary(lm(LAmy_BA10 ~ VE * Deprivation + EthnoRace_3cat + Gender_1F_2M + LAmy_BA11 + Internalizing + pubc_mean, data=clean.dataL))
+
+plot(mod2$residuals)
+
+```
+
+#### Amygdala-BA11 Model
+```{r}
+# Including all covariates.
+summary(lm(LAmy_BA11 ~ VE * Deprivation + EthnoRace_AA + EthnoRace_C + Gender_1F_2M + LAmy_BA10 + Internalizing + pubc_mean + CTQ_Abuse + CTQ.Neglect, data=clean.dataL))
+
+# No covariates.
+summary(lm(LAmy_BA11 ~ VE * Deprivation, data = clean.dataL))
+
+# Association between amygdala-BA11 connectivity and amygdala activation to threat faces.
+cor.test(clean.dataL$Lamy_0035, clean.dataL$LAmy_BA11)
+
+# Including covariates.
+summary(lm(Lamy_0035 ~ LAmy_BA11 + Internalizing + pubc_mean, data = clean.dataL))
+actmod4 = lm(Lamy_0035 ~ LAmy_BA11 + Internalizing + pubc_mean, data = clean.dataL)
+lm.beta(actmod4)
+
+summary(lm(Lamy_0035 ~ LAmy_BA11 + EthnoRace_C + EthnoRace_AA + Gender_0F_1M  + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data = clean.dataL))
+
+LBA11_act_mod = lm(Lamy_0035 ~ LAmy_BA11 + EthnoRace_C + EthnoRace_AA + Gender_0F_1M  + Internalizing + pubc_mean + ALES_sum + cm1edu + m1b2, data = clean.dataL)
+lm.beta(LBA11_act_mod)
+
+summary(lm(LAmy_0011 ~ LAmy_BA11, data = clean.dataL))
+summary(lm(Lamy_0003 ~ LAmy_BA11, data = clean.dataL))
+
+```
+
+#### Checking the residuals for the amygdala-BA11 model. 
+
+```{r}
+
+mod3 = summary(lm(LAmy_BA11 ~ VE * Deprivation + EthnoRace_3cat + Gender_1F_2M + LAmy_BA10 + Internalizing, data=clean.dataL))
+
+plot(mod3$residuals)
+
+```
+
+### Parsing the interaction for RAmy_BA47.
+
+Calculating basic statistics to parse the interaction. 
+
+```{r}
+model = lm(RAmy_BA47 ~ VE * Deprivation, data = clean.data)
+model2 = lm(clean.data$RAmy_BA47  ~ clean.data$Deprivation * clean.data$VE)
+
+vcov(model)
+summary(model)
+
+vcov(model2)
+summary(model2)
+
+min(clean.data$VE)
+max(clean.data$VE)
+mean(clean.data$VE)
+describe(clean.data$VE)
+
+max(clean.data$Deprivation)
+min(clean.data$Deprivation)
+mean(clean.data$Deprivation)
+describe(clean.data$Deprivation)
+```
+
+Interaction plots/statistics from Preacher Website - http://www.quantpsy.org/interact/mlr2.htm
+
+#### Social Deprivation as Moderator
+
+            TWO-WAY INTERACTION SIMPLE SLOPES OUTPUT
+
+Your Input
+=======================================================
+  X1        = -0.8200771
+  X2        = 2.169539
+  cv1       = -0.47
+  cv2       = 0.03
+  cv3       = 0.8
+  Intercept = 0.103768
+  X Slope   = 0.00106
+  Z Slope   = 0.020694
+  XZ Slope  = -0.038615
+  df        = 166
+  alpha     = 0.05
+
+Asymptotic (Co)variances
+=======================================================
+  var(b0) 0.00003331
+  var(b1) 0.00014843
+  var(b2) 0.00018122
+  var(b3) 0.00021459
+  cov(b2,b0) 0.00000634
+  cov(b3,b1) -0.0000387
+
+Region of Significance
+=======================================================
+  Z at lower bound of region = -1.122
+  Z at upper bound of region = 0.7862
+  (simple slopes are significant *outside* this region.)
+
+Simple Intercepts and Slopes at Conditional Values of Z
+=======================================================
+  At Z = cv1...
+    simple intercept = 0.094(0.0082), t=11.4569, p=0
+    simple slope     = 0.0192(0.0152), t=1.2606, p=0.2092
+  At Z = cv2...
+    simple intercept = 0.1044(0.0058), t=17.9421, p=0
+    simple slope     = -0.0001(0.0121), t=-0.0081, p=0.9935
+  At Z = cv3...
+    simple intercept = 0.1203(0.0126), t=9.5293, p=0
+    simple slope     = -0.0298(0.015), t=-1.9939, p=0.0478
+
+Simple Intercepts and Slopes at Region Boundaries
+=======================================================
+  Lower Bound...    
+    simple intercept = 0.0805(0.0157), t=5.1231, p=0
+    simple slope     = 0.0444(0.0225), t=1.9743, p=0.05
+  Upper Bound...    
+    simple intercept = 0.12(0.0125), t=9.6326, p=0
+    simple slope     = -0.0293(0.0148), t=-1.9744, p=0.05
+
+Points to Plot
+=======================================================
+  Line for cv1:  From {X=-0.8201, Y=0.0783} to {X=2.1695, Y=0.1357}
+  Line for cv2:  From {X=-0.8201, Y=0.1045} to {X=2.1695, Y=0.1042}
+  Line for cv3:  From {X=-0.8201, Y=0.1448} to {X=2.1695, Y=0.0556}
+
+```{r}
+
+xx <- c(-0.8201,2.1695)   #  <-- change to alter plot dims
+yy <- c(0.0378,0.1448)   #  <-- change to alter plot dims
+leg <- c(-0.8201,0.0511)   #  <-- change to alter legend location
+x <- c(-0.8201,2.1695)   #  <-- x-coords for lines
+y1 <- c(0.0783,0.1357)
+y2 <- c(0.1045,0.1042)
+y3 <- c(0.1448,0.0556)
+plot(xx,yy,type='n',font=2,font.lab=2,xlab='X',ylab='Y',main='MLR 2-Way Interaction Plot')
+lines(x,y1,lwd=3,lty=1,col=1)
+lines(x,y2,lwd=3,lty=5,col=2)
+lines(x,y3,lwd=3,lty=6,col=3)
+points(x,y1,col=1,pch=16)
+points(x,y2,col=1,pch=16)
+points(x,y3,col=1,pch=16)
+legend(leg[1],leg[2],legend=c('CVz1(1)','CVz1(2)','CVz1(3)'),lwd=c(3,3,3),lty=c(1,5,6),col=c(1,2,3))
+
+
+```
+
+```{r}
+z1=-.7646  #supply lower bound for z
+z2=2.671   #supply upper bound for z
+z <- seq(z1,z2,length=1000)
+fz <- c(z,z)
+y1 <- (0.00106+-0.038615*z)+(1.9744*sqrt(0.0001484268+(2*z*-0.00003870033)+((z^2)*0.0002145924)))
+y2 <- (0.00106+-0.038615*z)-(1.9744*sqrt(0.0001484268+(2*z*-0.00003870033)+((z^2)*0.0002145924)))
+fy <- c(y1,y2)
+fline <- (0.00106+-0.038615*z)
+plot(fz,fy,type='p',pch='.',font=2,font.lab=2,col=2,xlab='Moderator',ylab='Simple Slope',main='Confidence Bands')
+lines(z,fline)
+f0 <- array(0,c(1000))
+lines(z,f0,col=8)
+abline(v=-1.122,col=4,lty=2)
+abline(v=0.7862,col=4,lty=2)
+
+
+```
+
+
+```{r}
+interact_plot(model, pred = VE, modx = Deprivation, x.label = "Violence Exposure", y.label = "Amygdala-OFC White Matter Connectivity", legend.main = "Social Deprivation",modx.values="plus-minus",plot.points = FALSE, color.class = c("gray54","steelblue4"),line.thickness = 2, rug = TRUE, rug.sides = "bl") + geom_line(linetype=1, size=2) + theme_classic() + theme(text=element_text(size = 16, family="serif")) 
+```
+
+#### Threat as Moderator
+
+       TWO-WAY INTERACTION SIMPLE SLOPES OUTPUT
+
+Your Input
+=======================================================
+  X1        = -0.7646
+  X2        = 2.671
+  cv1       = -0.46
+  cv2       = 0.0384145
+  cv3       = 0.54
+  Intercept = 0.103768
+  X Slope   = 0.020694
+  Z Slope   = 0.00106
+  XZ Slope  = -0.038615
+  df        = 166
+  alpha     = 0.05
+
+Asymptotic (Co)variances
+=======================================================
+  var(b0) 0.00003331
+  var(b1) 0.00018122
+  var(b2) 0.00014843
+  var(b3) 0.00021459
+  cov(b2,b0) 0.00000124
+  cov(b3,b1) -0.00006852
+
+Region of Significance
+=======================================================
+  Z at lower bound of region = -0.2291
+  Z at upper bound of region = 1.8545
+  (simple slopes are significant *outside* this region.)
+
+Simple Intercepts and Slopes at Conditional Values of Z
+=======================================================
+  At Z = cv1...
+    simple intercept = 0.1033(0.008), t=12.953, p=0
+    simple slope     = 0.0385(0.017), t=2.2596, p=0.0251
+  At Z = cv2...
+    simple intercept = 0.1038(0.0058), t=17.9032, p=0
+    simple slope     = 0.0192(0.0133), t=1.4469, p=0.1498
+  At Z = cv3...
+    simple intercept = 0.1043(0.0088), t=11.8201, p=0
+    simple slope     = -0.0002(0.013), t=-0.0121, p=0.9903
+
+Simple Intercepts and Slopes at Region Boundaries
+=======================================================
+  Lower Bound...    
+    simple intercept = 0.1035(0.0064), t=16.2613, p=0
+    simple slope     = 0.0295(0.015), t=1.9743, p=0.05
+  Upper Bound...    
+    simple intercept = 0.1057(0.0234), t=4.5153, p=0
+    simple slope     = -0.0509(0.0258), t=-1.9743, p=0.05
+
+Points to Plot
+=======================================================
+  Line for cv1:  From {X=-0.7646, Y=0.0739} to {X=2.671, Y=0.206}
+  Line for cv2:  From {X=-0.7646, Y=0.0891} to {X=2.671, Y=0.1551}
+  Line for cv3:  From {X=-0.7646, Y=0.1045} to {X=2.671, Y=0.1039}
+
+
+```{r}
+xx <- c(-0.7646,2.671)   #  <-- change to alter plot dims
+yy <- c(0.0475,0.206)   #  <-- change to alter plot dims
+leg <- c(-0.7646,0.0673)   #  <-- change to alter legend location
+x <- c(-0.7646,2.671)   #  <-- x-coords for lines
+y1 <- c(0.0739,0.206)
+y2 <- c(0.0891,0.1551)
+y3 <- c(0.1045,0.1039)
+plot(xx,yy,type='n',font=2,font.lab=2,xlab='X',ylab='Y',main='MLR 2-Way Interaction Plot')
+lines(x,y1,lwd=3,lty=1,col=1)
+lines(x,y2,lwd=3,lty=5,col=2)
+lines(x,y3,lwd=3,lty=6,col=3)
+points(x,y1,col=1,pch=16)
+points(x,y2,col=1,pch=16)
+points(x,y3,col=1,pch=16)
+legend(leg[1],leg[2],legend=c('CVz1(1)','CVz1(2)','CVz1(3)'),lwd=c(3,3,3),lty=c(1,5,6),col=c(1,2,3))
+
+```
+
+```{r}
+z1=-0.82  #supply lower bound for z
+z2=2.17   #supply upper bound for z
+z <- seq(z1,z2,length=1000)
+fz <- c(z,z)
+y1 <- (0.020694+-0.038615*z)+(1.9744*sqrt(0.0001812183+(2*z*-0.00006851916)+((z^2)*0.0002145924)))
+y2 <- (0.020694+-0.038615*z)-(1.9744*sqrt(0.0001812183+(2*z*-0.00006851916)+((z^2)*0.0002145924)))
+fy <- c(y1,y2)
+fline <- (0.020694+-0.038615*z)
+plot(fz,fy,type='p',pch='.',font=2,font.lab=2,col=2,xlab='Moderator',ylab='Simple Slope',main='Confidence Bands')
+lines(z,fline)
+f0 <- array(0,c(1000))
+lines(z,f0,col=8)
+abline(v=-0.2291,col=4,lty=2)
+abline(v=1.8545,col=4,lty=2)
+
+```
+
+### Testing to see if puberty score was higher in parent report.
+```{r}
+
+t.test(clean.data$pubc_mean ~ clean.data$used_pubp)
+
+```
+
+Great, they're not different.
+
+### Compare the full sample with the included sample
+
+```{r}
+full_puberty = read_csv('/Users/leighgayle/Box Sync/FF_Demographics/FullSample_Puberty.csv')
+
+t.test(full_puberty$puberty_score, clean.data$pubc_mean)
+t.test(full_puberty$puberty_score, clean.dataL$pubc_mean)
+```
+```{r}
+full_age = read.csv('/Users/leighgayle/Box Sync/FF_Demographics/Teen.age.csv')
+
+t.test(full_age$Age_Years, clean.data$AgeYears)
+t.test(full_age$Age_Years, clean.dataL$AgeYears)
+```
+
+### Making some tables of the non-significant regressions
+
+```{r}
+RAmy_BA10_reg = lm(RAmy_BA10 ~ VE + Deprivation + ThreatDepInt + RAmy_BA47, data = clean.data)
+apa.reg.table(RAmy_BA10_reg, filename = "RAmy_BA10_Table.doc", table.number = 5)
+
+lm.beta(RAmy_BA10_reg)
+summary(RAmy_BA10_reg)
+```
+
+```{r}
+LAmy_BA10_reg = lm(LAmy_BA10 ~ VE + Deprivation + ThreatDepInt + LAmy_BA11, data = clean.dataL)
+
+lm.beta(LAmy_BA10_reg)
+summary(LAmy_BA10_reg)
+```
+```{r}
+LAmy_BA11_reg = lm(LAmy_BA11 ~ VE + Deprivation + ThreatDepInt + LAmy_BA10, data = clean.dataL)
+
+lm.beta(LAmy_BA11_reg)
+summary(LAmy_BA11_reg)
+```
+
+### Checking to see how correlated threat and dep are:
+
+```{r}
+cor.test(clean.data$VE, clean.data$Deprivation)
+fit_cor = lm(RAmy_BA47 ~ VE + Deprivation, data = clean.data)
+vif(fit_cor)
+
+par(family = 'serif')
+plot(clean.data$VE, clean.data$Deprivation, frame.plot = FALSE,  main=NULL, cex.lab = 1.5, font.lab=2, ylab = "Deprivation", xlab = "Violence Exposure", pch=16)
+
+```
+
+
+### Plotting White Matter - Amygdala Activation Association for BA47
+```{r}
+par(family = 'serif')
+plot(clean.data$RAmy_BA47, clean.data$Ramy_0035, frame.plot = FALSE,  main=NULL, cex.lab = 1.5, font.lab=2, xlab = "Amygdala-OFC White Matter Connectivity", ylab = "Amygdala Activation to Threat Faces", pch=16)
+```
+
+
